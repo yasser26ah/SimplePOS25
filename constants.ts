@@ -43,7 +43,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: '6',
-    name: 'Croissant de Almendras',
+    name: 'Muffin de Chocolate',
     price: 4.50,
     stock: 40,
     category: 'Bollería',
