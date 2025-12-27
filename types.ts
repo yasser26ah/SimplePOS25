@@ -29,7 +29,7 @@ export interface Sale {
   invoiceEmailContent?: string;
 }
 
-export type ViewState = 'POS' | 'INVENTORY' | 'ACCOUNTING';
+export type ViewState = 'POS' | 'INVENTORY' | 'ACCOUNTING' | 'BANKS';
 
 export interface SalesSummary {
   //resumen de ventas en contabilidad

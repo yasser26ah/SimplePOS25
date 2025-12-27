@@ -40,6 +40,14 @@ export const INITIAL_PRODUCTS: Product[] = [
     stock: 40,
     category: 'Bollería',
     image: 'https://picsum.photos/200/200?random=5'
+  },
+  {
+    id: '6',
+    name: 'Croissant de Almendras',
+    price: 4.50,
+    stock: 40,
+    category: 'Bollería',
+    image: 'https://picsum.photos/200/200?random=6'
   }
 ];
 

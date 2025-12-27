@@ -1,6 +1,6 @@
 import React from 'react';
 import { useStore } from '../context/StoreContext';
-import { ShoppingCart, Package, BarChart3, Store } from 'lucide-react';
+import { ShoppingCart, Package, BarChart3, Store, Wallet} from 'lucide-react';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentView, setCurrentView } = useStore();
@@ -10,8 +10,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       onClick={() => setCurrentView(view)}
       className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors duration-200 ${
         currentView === view 
-          ? 'bg-blue-600 text-white' 
-          : 'text-gray-600 hover:bg-gray-100 hover:text-blue-600'
+          ? 'bg-green-600 text-white' 
+          : 'text-gray-600 hover:bg-gray-100 hover:text-orange-600'
       }`}
     >
       <Icon size={20} />
@@ -34,11 +34,13 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           <NavItem view="POS" icon={ShoppingCart} label="Punto de Venta" />
           <NavItem view="INVENTORY" icon={Package} label="Inventario" />
           <NavItem view="ACCOUNTING" icon={BarChart3} label="Contabilidad" />
+          <NavItem view="BANKS" icon={Wallet} label="Caja" />
         </nav>
 
         <div className="p-4 border-t border-gray-100">
           <div className="text-xs text-gray-400 text-center">
-            v1.0.0 &copy; 2024
+            v1.0.1 © {new Date().getFullYear()}
+            {/* &copy; 2024 */}
           </div>
         </div>
       </div>
