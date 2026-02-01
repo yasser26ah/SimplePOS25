@@ -5,7 +5,7 @@ import { Calendar, DollarSign, CreditCard, Banknote } from 'lucide-react';
 
 type PeriodType = 'daily' | 'weekly' | 'monthly';
 
-export default function Caja() {
+export default function Banks() {
     const { sales } = useStore();
     const [period, setPeriod] = useState<PeriodType>('daily');
 

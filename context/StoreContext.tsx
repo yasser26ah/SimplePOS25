@@ -32,7 +32,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   });
 
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [currentView, setCurrentView] = useState<'POS' | 'INVENTORY' | 'ACCOUNTING'>('POS');
+  const [currentView, setCurrentView] = useState<'POS' | 'INVENTORY' | 'ACCOUNTING' | 'BANKS'>('POS');
 
   useEffect(() => {
     localStorage.setItem('products', JSON.stringify(products));

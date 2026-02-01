@@ -1,5 +1,63 @@
 ## Copilot / AI Agent instructions for SIMPLEPOS
 
+Breve: SIMPLEPOS es una SPA React + TypeScript (Vite) para un Punto de Venta local. El estado principal vive en `localStorage`; la IA es opcional y está centralizada en `services/geminiService.ts`.
+
+### Comandos esenciales
+- **Instalar dependencias:** `pnpm install` (o `npm install` si no usas pnpm)
+- **Desarrollo:** `pnpm dev` (Vite, por defecto en http://localhost:3000)
+- **Build / Preview:** `pnpm build` y `pnpm preview`
+
+### Variables de entorno importantes
+- `GEMINI_API_KEY` — usada por `services/geminiService.ts`. Está expuesta por `vite.config.ts` como `process.env.GEMINI_API_KEY` (y también `process.env.API_KEY`).
+- Si no existe la clave, `geminiService` maneja la ausencia y devuelve errores amigables para que la app no crashee.
+
+### Arquitectura y flujo clave (por qué importa)
+- Entrada UI: [App.tsx](App.tsx) — envuelve la app con `StoreProvider`.
+- Estado y lógica central: [context/StoreContext.tsx](context/StoreContext.tsx). Aquí están las reglas de negocio principales: `products`, `sales`, `cart` se persisten en `localStorage`; acciones expuestas: `addToCart`, `completeSale`, `addProduct`, `updateProduct`, `deleteProduct`.
+- Checkout: [components/POS.tsx](components/POS.tsx) — ejecuta el flujo de cobro y llama a `generateInvoiceEmail()` (integración IA opcional).
+- IA: [services/geminiService.ts](services/geminiService.ts) — encapsula llamadas a `@google/genai` y contiene los prompts. Cambios aquí afectan generación de emails y análisis.
+- Datos iniciales y tipos: [constants.ts](constants.ts) y [types.ts](types.ts) (revisar `INITIAL_PRODUCTS`, `APP_CURRENCY` y los tipos `Product`, `Sale`, `CartItem`).
+
+### Patrones y convenciones del repo
+- TypeScript + React con `jsx: react-jsx`.
+- Alias de importación `@` a la raíz (ver `tsconfig.json` y `vite.config.ts`) — preferir este alias para imports internos.
+- Estilos: clases utility-style (Tailwind-like) en JSX; iconos via `lucide-react`.
+- Persistencia: el app no tiene backend; todo se guarda en `localStorage` bajo llaves como `products` y `sales`. Evitar suponer sincronización multi-usuario.
+
+### Dónde tocar cada cosa (ejemplos concretos)
+- Cambios de estado/persistencia: editar [context/StoreContext.tsx](context/StoreContext.tsx).
+- Ajustes en prompts o fallbacks de IA: editar [services/geminiService.ts](services/geminiService.ts).
+- UI/flujo de checkout: editar [components/POS.tsx](components/POS.tsx) — aquí se invoca la creación de correos/IA tras completar una venta.
+- Datos iniciales y monedas: [constants.ts](constants.ts).
+
+### Integraciones externas y puntos de fallo
+- `@google/genai` se usa opcionalmente; las llamadas pueden fallar sin `GEMINI_API_KEY`. `geminiService` ya incluye manejo básico de ausencia de clave.
+- No existe servidor ni base de datos en runtime; la carpeta `database/` contiene SQL de referencia (`db_productos.sql`, etc.) pero no se aplica automáticamente.
+
+### Desarrollo y depuración práctica
+- Revisar `localStorage` para depurar estado (`products`, `sales`, `cart`).
+- Logs relevantes: `console.error` en `services/geminiService.ts` y errores que provienen de `completeSale()`.
+- Si necesitas reproducir IA sin clave: mockear `services/geminiService.ts` para devolver texto estático.
+
+### Restricciones y precauciones
+- No modificar la gestión de `localStorage` sin considerar migraciones; los usuarios del repo asumen la existencia de las llaves `products` y `sales`.
+- Evitar exponer `GEMINI_API_KEY` en commits. Las variables de Vite se inyectan en build/dev.
+
+### Tareas recomendadas para PRs pequeñas
+- Para cambios de negocio: agrega/actualiza tests en torno a `context/StoreContext.tsx` (si necesitas, puedo generar tests básicos).
+- Para cambios en IA: actualiza prompts en `services/geminiService.ts` y agrega un modo fallback legible cuando no haya clave.
+
+### Archivos clave para revisar rápidamente
+- [context/StoreContext.tsx](context/StoreContext.tsx)
+- [services/geminiService.ts](services/geminiService.ts)
+- [components/POS.tsx](components/POS.tsx)
+- [constants.ts](constants.ts)
+- [types.ts](types.ts)
+- [vite.config.ts](vite.config.ts)
+
+Si quieres, actualizo esta guía con: fragmentos de PR template, tests unitarios mínimos para `StoreContext`, o ejemplos de prompts mejorados en `geminiService.ts`. ¿Qué prefieres que haga a continuación?
+## Copilot / AI Agent instructions for SIMPLEPOS
+
 Breve: SmartPOS es una SPA React + TypeScript (Vite) para un Punto de Venta local con estado en `localStorage` y una integración opcional de IA (@google/genai). Estas instrucciones ayudan a un agente de codificación a ser productivo rápidamente.
 
 - **Cómo ejecutar**: usar `pnpm` (hay `pnpm-lock.yaml`) o `npm`.

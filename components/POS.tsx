@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { APP_CURRENCY } from '../constants';
 // Added ShoppingCart to imports
-import { Search, Plus, Minus, Trash2, User, CreditCard, Sparkles, Send, Mail, ShoppingCart } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, User, CreditCard, Sparkles, Send, Mail, ShoppingCart, ShoppingBag, IdCard, Printer, Banknote, Landmark, HandCoins   } from 'lucide-react';
 import { generateInvoiceEmail } from '../services/geminiService';
 import { Sale } from '../types';
 
@@ -75,15 +75,15 @@ export const POS: React.FC = () => {
                <Sparkles className="text-green-600" size={24} />
              </div>
              <div>
-               <h2 className="text-xl font-bold text-green-800">¡Venta Exitosa!</h2>
-               <p className="text-green-600 text-sm">Total: {APP_CURRENCY}{lastSale.total.toFixed(2)}</p>
+               <h2 className="text-xl font-bold text-green-800">¡Venta Realizada!</h2>
+               <p className="text-green-600 text-sm">Total: {APP_CURRENCY}{lastSale.total.toFixed(0)}</p>
              </div>
           </div>
 
           <div className="p-6 space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                <Mail size={16} /> Correo de Facturación (IA Generado)
+                <Mail size={16} /> Correo de Facturación
               </label>
               {isGeneratingEmail ? (
                 <div className="h-32 bg-gray-50 rounded-lg animate-pulse flex items-center justify-center text-gray-400">
@@ -128,8 +128,7 @@ export const POS: React.FC = () => {
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <div className="p-6 border-b border-gray-200 bg-white flex justify-between items-center sticky top-0 z-10">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">Productos</h2>
-            <p className="text-gray-500 text-sm">Selecciona productos para añadir al carrito</p>
+            <h1 className="text-2xl font-bold text-gray-800">x</h1>
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
