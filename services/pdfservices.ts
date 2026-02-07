@@ -33,9 +33,9 @@ export const generateReceiptPDF = (sale: Sale) => {
 
   // Helper para linea separadora
   const drawLine = (y: number) => {
-    doc.setLineDash([1, 1], 0);
+    doc.setDrawColor(200);
     doc.line(margin, y, pageWidth - margin, y);
-    doc.setLineDash([], 0); // Reset
+    doc.setDrawColor(0);
   };
 
   // --- HEADER ---
