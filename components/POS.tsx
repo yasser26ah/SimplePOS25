@@ -5,6 +5,9 @@ import { APP_CURRENCY } from '../constants';
 import { Search, Plus, Minus, Trash2, User, CreditCard, Sparkles, Send, Mail, ShoppingCart, ShoppingBag, IdCard, Printer, Banknote, Landmark, HandCoins   } from 'lucide-react';
 import { generateInvoiceEmail } from '../services/geminiService';
 import { Sale } from '../types';
+import { generateReceiptPDF } from '../services/pdfservices';
+
+
 
 const DEFAULT_CUSTOMER = {
   name: 'consumidor final',
@@ -64,6 +67,12 @@ export const POS: React.FC = () => {
   const closeSuccessModal = () => {
     setLastSale(null);
     setEmailContent('');
+  };
+
+  const handlePrintReceipt = () => {
+    if (lastSale) {
+      generateReceiptPDF(lastSale);
+    }
   };
 
   if (lastSale) {
