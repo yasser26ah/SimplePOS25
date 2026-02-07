@@ -8,13 +8,13 @@ import { Sale, Product } from '../types';
 import { generateReceiptPDF } from '../services/pdfservices';
 
 
-
+// Default customer info for quick checkout
 const DEFAULT_CUSTOMER = {
   name: 'consumidor final',
   email: 'consumidorfinal@gmail.com',
   nit: '222222222'
 };
-
+// Agregamos un contenedor para el grid de productos con padding y espacio entre ellos
 export const POS: React.FC = () => {
   const { products, cart, addToCart, removeFromCart, updateCartQuantity, completeSale } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,19 +36,20 @@ export const POS: React.FC = () => {
   const [emailContent, setEmailContent] = useState('');
   const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
 
+// Función para filtrar productos según el término de búsqueda
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
+// Calculamos el total del carrito y la cantidad de items
   const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-
+// Función para manejar la adición de productos al carrito y mostrar el toast
   const handleAddToCart = (product: Product) => {
     addToCart(product);
     setToast({ message: `${product.name} añadido`, visible: true });
   };
-
+// Efecto para ocultar el toast después de 2 segundos
     useEffect(() => {
      if (toast.visible) {
       const timer = setTimeout(() => {
@@ -57,19 +58,19 @@ export const POS: React.FC = () => {
       return () => clearTimeout(timer);
     }
     }, [toast.visible]);
-
+// Función para manejar el proceso de checkout, completar la venta, generar el email y mostrar el modal de éxito
     const handleCheckout = async () => {
     if (!customerName || !customerEmail) {
       alert("Por favor ingrese nombre y correo del cliente.");
       return;
     }
-
+// Completamos la venta y obtenemos los detalles de la misma
     const sale = await completeSale({
       name: customerName,
       email: customerEmail,
       nit: customerNit
     });
-
+// Guardamos la última venta para mostrar en el modal de éxito y cerramos el formulario de checkout
     setLastSale(sale);
     setIsCheckingOut(false);
     setIsCartDrawerOpen(false);
@@ -85,18 +86,18 @@ export const POS: React.FC = () => {
     setCustomerEmail(DEFAULT_CUSTOMER.email);
     setCustomerNit(DEFAULT_CUSTOMER.nit);
   };
-
+// Función para cerrar el modal de éxito y resetear el estado relacionado con la última venta y el contenido del email generado
   const closeSuccessModal = () => {
     setLastSale(null);
     setEmailContent('');
   };
-
+// Función para generar el PDF de la factura utilizando los detalles de la última venta
   const handlePrintReceipt = () => {
     if (lastSale) {
       generateReceiptPDF(lastSale);
     }
   };
-
+// Contenido del carrito, extraído a un componente para reutilizar en el sidebar de escritorio y el drawer móvil
  const CartContent = () => (
     <div className="flex flex-col h-full bg-white">
       <div className="p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 z-10 bg-white">
@@ -151,7 +152,7 @@ export const POS: React.FC = () => {
       </div>
     </div>
   );
-
+// Funciones del contexto (para referencia, no parte del componente POS)
   return (
     <div className="flex h-full relative">
       {/* Product List Section */}
@@ -253,6 +254,7 @@ export const POS: React.FC = () => {
             </div>
             <div className="p-6 space-y-4">
               <div>
+           
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Nombre Completo</label>
                 <input 
                   type="text" 
@@ -288,6 +290,7 @@ export const POS: React.FC = () => {
                   />
                 </div>
               </div>
+             
               <div className="pt-4">
                 <div className="flex justify-between items-center mb-4 text-xl font-bold">
                   <span className="text-gray-500">Total a pagar:</span>
@@ -321,7 +324,7 @@ export const POS: React.FC = () => {
               <h3 className="text-2xl font-bold mb-1">¡Venta Exitosa!</h3>
               <p className="text-blue-100">Transacción #{lastSale.id}</p>
             </div>
-            
+          
             <div className="p-8 space-y-6">
               <div className="bg-indigo-50 rounded-2xl p-6 border border-indigo-100">
                 <h4 className="font-bold text-indigo-900 flex items-center gap-2 mb-3">
