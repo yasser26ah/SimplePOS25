@@ -60,7 +60,7 @@ export const Inventory: React.FC = () => {
         </div>
         <button 
           onClick={() => openModal()}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition shadow-sm"
+          className="bg-orange-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-orange-700 transition shadow-sm"
         >
           <Plus size={20} /> Nuevo Producto
         </button>
