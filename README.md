@@ -6,3 +6,4 @@
 2. Set the `SimplePOS`
 3. Run the app in browser :
    `npm run dev` in your terminal
+4. enjoy the app
