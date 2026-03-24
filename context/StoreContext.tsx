@@ -6,8 +6,8 @@ interface StoreContextType {
   products: Product[];
   cart: CartItem[];
   sales: Sale[];
-  currentView: 'POS' | 'INVENTORY' | 'ACCOUNTING'| 'BANKS';
-  setCurrentView: (view: 'POS' | 'INVENTORY' | 'ACCOUNTING'| 'BANKS') => void;
+  currentView: 'POS' | 'INVENTORY' | 'ACCOUNTING'| 'BANKS'| 'CONFIG';
+  setCurrentView: (view: 'POS' | 'INVENTORY' | 'ACCOUNTING'| 'BANKS'| 'CONFIG') => void;
   addToCart: (product: Product) => void;
   removeFromCart: (productId: string) => void;
   updateCartQuantity: (productId: string, quantity: number) => void;

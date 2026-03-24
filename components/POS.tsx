@@ -54,7 +54,7 @@ export const POS: React.FC = () => {
      if (toast.visible) {
       const timer = setTimeout(() => {
         setToast({ ...toast, visible: false });
-      }, 2000);
+      }, 1500);
       return () => clearTimeout(timer);
     }
     }, [toast.visible]);
@@ -126,9 +126,28 @@ export const POS: React.FC = () => {
                 <h4 className="font-bold text-gray-800 truncate text-sm">{item.name}</h4>
                 <p className="text-orange-500 font-bold text-sm">{APP_CURRENCY}{item.price.toFixed(2)}</p>
                 <div className="flex items-center gap-3 mt-2">
-                  <button onClick={() => updateCartQuantity(item.id, item.quantity - 1)} className="p-1 hover:bg-white rounded border border-gray-200 shadow-sm"><Minus size={14} className="lg:hidden p-0 text-gray-600 hover:text-gray-600 square-full hover:bg-orange-100"/></button>
-                  <span className="font-bold text-gray-700 text-sm">{item.quantity}</span>
-                  <button onClick={() => updateCartQuantity(item.id, item.quantity + 1)} className="p-1 hover:bg-white rounded border border-gray-200 shadow-sm"><Plus size={14} className="lg:hidden p-0 text-gray-600 hover:text-gray-600 square-full hover:bg-green-100"/></button>
+                  <button
+                    onClick={() => updateCartQuantity(item.id, item.quantity - 1)}
+                    className="p-1 hover:bg-white rounded border border-gray-200 shadow-sm"
+                  >
+                    <Minus size={14} />
+                  </button>
+
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={item.quantity}
+                    onChange={e => handleQuantityChange(item.id, Number(e.target.value))}
+                    className="w-16 text-center border border-gray-200 rounded-md p-1 bg-white"
+                  />
+
+                  <button
+                    onClick={() => updateCartQuantity(item.id, item.quantity + 1)}
+                    className="p-1 hover:bg-white rounded border border-gray-200 shadow-sm"
+                  >
+                    <Plus size={14} />
+                  </button>
                 </div>
               </div>
               <button onClick={() => removeFromCart(item.id)} className="text-red-400 hover:text-red-600 p-2"><Trash2 size={18}/></button>
@@ -152,6 +171,12 @@ export const POS: React.FC = () => {
       </div>
     </div>
   );
+// Función para manejar cambios en la cantidad del carrito
+  const handleQuantityChange = (id: string, value: number) => {
+    if (value < 1) return;
+    updateCartQuantity(id, value);
+  };
+
 // Funciones del contexto (para referencia, no parte del componente POS)
   return (
     <div className="flex h-full relative">
@@ -319,14 +344,14 @@ export const POS: React.FC = () => {
                 </button>
               </div>
               <div className="bg-white/20 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white/30">
-                <Plus size={40} className="rotate-45" />
+                <CheckCircle size={40}/>
               </div>
               <h3 className="text-2xl font-bold mb-1">¡Venta Exitosa!</h3>
               <p className="text-blue-100">Transacción #{lastSale.id}</p>
             </div>
           
             <div className="p-8 space-y-6">
-              <div className="bg-indigo-50 rounded-2xl p-6 border border-indigo-100">
+              {/*<div className="bg-indigo-50 rounded-2xl p-6 border border-indigo-100">
                 <h4 className="font-bold text-indigo-900 flex items-center gap-2 mb-3">
                   <Sparkles size={18} className="text-indigo-600" /> Enviada al email:
                 </h4>
@@ -340,7 +365,7 @@ export const POS: React.FC = () => {
                     {emailContent}
                   </div>
                 )}
-              </div>
+              </div>*/}
 
               <div className="flex flex-col gap-3">
                 <button 
@@ -369,3 +394,4 @@ export const POS: React.FC = () => {
     </div>
   );
 };
+

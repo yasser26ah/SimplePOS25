@@ -29,7 +29,7 @@ export interface Sale {
   invoiceEmailContent?: string;
 }
 
-export type ViewState = 'POS' | 'INVENTORY' | 'ACCOUNTING' | 'BANKS';
+export type ViewState = 'POS' | 'INVENTORY' | 'ACCOUNTING' | 'BANKS'| 'config';
 
 export interface SalesSummary {
   //resumen de ventas en contabilidad
@@ -37,4 +37,13 @@ export interface SalesSummary {
   totalSales: number;
   topSellingProduct: string;
   dailySales: { date: string; amount: number }[];
+}
+
+export interface CompanyInfo {
+  //datos de la empresa para modelo de factura
+  name: string;
+  nit: string;
+  address: string;
+  phone: string;
+  email: string;
 }

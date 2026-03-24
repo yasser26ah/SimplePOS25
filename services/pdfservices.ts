@@ -1,6 +1,7 @@
 import { jsPDF } from "jspdf";
 import { Sale } from "../types";
 import { APP_CURRENCY } from "../constants";
+import { CompanyInfo } from "../types";
 
 export const generateReceiptPDF = (sale: Sale) => {
   // Configuración para papel térmico de 80mm
@@ -38,7 +39,7 @@ export const generateReceiptPDF = (sale: Sale) => {
     doc.setDrawColor(0);
   };
 
-  // --- HEADER ---
+  // --- HEADER / cabecera factura ---
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
   centerText("SimplePOS", yPos);
@@ -48,9 +49,9 @@ export const generateReceiptPDF = (sale: Sale) => {
   doc.setFont("helvetica", "normal");
   centerText("NIT: 900.123.456-7", yPos);
   yPos += 4;
-  centerText("Calle 123 # 45-67, Ciudad", yPos);
+  centerText("Calle falsa #123, Juan de Acosta", yPos);
   yPos += 4;
-  centerText("Tel: (601) 555-5555", yPos);
+  centerText("Cel: 301 335 0490", yPos);
   yPos += 6;
 
   drawLine(yPos);
@@ -116,10 +117,9 @@ export const generateReceiptPDF = (sale: Sale) => {
   doc.setFont("helvetica", "normal");
   centerText("¡Gracias por su compra!", yPos);
   yPos += 4;
-  centerText("Régimen Común", yPos);
+  centerText("Régimen Simple", yPos);
   yPos += 4;
-  centerText("Resolución DIAN #123456789", yPos);
-
+  
   // Descargar
   doc.save(`tirilla_venta_${sale.id}.pdf`);
 };

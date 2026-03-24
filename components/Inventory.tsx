@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Product } from '../types';
 import { APP_CURRENCY } from '../constants';
-import { Plus, Edit2, Trash2, X, Save } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, Table, Space, List } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 export const Inventory: React.FC = () => {
-  const { products, addProduct, updateProduct, deleteProduct } = useStore();
+  const { products, sales, addProduct, updateProduct, deleteProduct } = useStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
   // Form State
   const [formData, setFormData] = useState<Omit<Product, 'id'>>({
@@ -17,6 +19,31 @@ export const Inventory: React.FC = () => {
     category: '',
     image: 'https://picsum.photos/200/200'
   });
+
+  const selectedProduct = products.find(p => p.id === selectedProductId);
+
+  const productStats = useMemo(() => {
+    if (!selectedProduct) return null;
+    const relevantSales = sales.filter(sale => sale.items.some(item => item.id === selectedProduct.id));
+    const totalUnits = relevantSales.reduce((sum, sale) => {
+      const item = sale.items.find(i => i.id === selectedProduct.id);
+      return sum + (item?.quantity || 0);
+    }, 0);
+    const totalRevenue = relevantSales.reduce((sum, sale) => {
+      const item = sale.items.find(i => i.id === selectedProduct.id);
+      return sum + (item ? item.price * item.quantity : 0);
+    }, 0);
+    const dailyData = relevantSales.reduce((acc, sale) => {
+      const date = new Date(sale.date).toISOString().split('T')[0];
+      const item = sale.items.find(i => i.id === selectedProduct.id);
+      const qty = item?.quantity || 0;
+      if (!acc[date]) acc[date] = { date, units: 0 };
+      acc[date].units += qty;
+      return acc;
+    }, {} as Record<string, { date: string; units: number }>);
+    const chartData = Object.values(dailyData).sort((a, b) => (a as { date: string; units: number }).date.localeCompare((b as { date: string; units: number }).date));
+    return { totalUnits, totalRevenue, chartData };
+  }, [selectedProduct, sales]);
 
   const openModal = (product?: Product) => {
     if (product) {
@@ -74,6 +101,8 @@ export const Inventory: React.FC = () => {
               <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Categoría</th>
               <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Precio</th>
               <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Stock</th>
+              <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Total
+              </th>
               <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Acciones</th>
             </tr>
           </thead>
@@ -91,6 +120,11 @@ export const Inventory: React.FC = () => {
                 <td className="px-6 py-4">
                   <span className={`px-2 py-1 text-xs rounded-full font-medium ${product.stock > 10 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                     {product.stock} unids.
+                  </span>
+                </td>
+                <td className="px-6 py-4">
+                  <span className="font-medium text-gray-800">
+                    {APP_CURRENCY}{(product.price * product.stock).toFixed(0)}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right">
@@ -119,6 +153,47 @@ export const Inventory: React.FC = () => {
           </div>
         )}
       </div>
+
+      <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h3 className="text-xl font-bold text-gray-800 mb-4">Análisis de Producto</h3>
+        <select
+          value={selectedProductId || ''}
+          onChange={e => setSelectedProductId(e.target.value || null)}
+          className="mb-4 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+        >
+          <option value="">Selecciona un producto</option>
+          {products.map(product => (
+            <option key={product.id} value={product.id}>{product.name}</option>
+          ))}
+        </select>
+        {productStats && (
+          <div>
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="text-sm font-medium text-gray-500">Total Unidades Vendidas</h4>
+                <p className="text-2xl font-bold text-gray-800">{productStats.totalUnits}</p>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="text-sm font-medium text-gray-500">Total Ingresos</h4>
+                <p className="text-2xl font-bold text-gray-800">{APP_CURRENCY}{productStats.totalRevenue.toFixed(2)}</p>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-lg font-semibold text-gray-800 mb-2">Ventas Diarias</h4>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={productStats.chartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="units" fill="#8884d8" name="Unidades" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+      </div>  
 
       {/* Modal */}
       {isModalOpen && (
