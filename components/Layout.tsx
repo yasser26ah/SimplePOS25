@@ -1,13 +1,21 @@
 import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
-import { ShoppingCart, Package, BarChart3, Wallet, ShoppingBag, Menu, X, Settings2, ChevronLeft, LogOut, UserCircle } from 'lucide-react';
+import { ShoppingCart, Package, BarChart3, Wallet, ShoppingBag, Menu, X, Settings2, ChevronLeft, LogOut, UserCircle, Wifi, WifiOff, RefreshCw, Download } from 'lucide-react';
 
 //Componente NavBar - Sidebar sin desplegar(false) y desplegado(true)
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentView, setCurrentView, dataMode } = useStore();
+  const { currentView, setCurrentView, dataMode, online, pendingCount, syncing, syncNow } = useStore();
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [installable, setInstallable] = useState(false);
+
+  // Detecta disponibilidad de instalación PWA y actualizaciones del service worker.
+  React.useEffect(() => {
+    const onInstallable = () => setInstallable(true);
+    window.addEventListener('simplepos:pwa-installable', onInstallable);
+    return () => window.removeEventListener('simplepos:pwa-installable', onInstallable);
+  }, []);
 
   //Items de navegación - slidebar
   const NavItem = ({ view, icon: Icon, label }: { view: typeof currentView, icon: any, label: string }) => (
@@ -79,6 +87,45 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         </nav>
 
         <div className="p-3 border-t border-gray-100 space-y-2">
+          {/* Estado de conexión y cola offline */}
+          <div
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${
+              online ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+            }`}
+          >
+            {online ? <Wifi size={14} /> : <WifiOff size={14} />}
+            <span className="flex-1">
+              {!online
+                ? 'Sin conexión — modo offline'
+                : pendingCount > 0
+                  ? `${pendingCount} venta(s) pendiente(s)`
+                  : 'En línea'}
+            </span>
+            {pendingCount > 0 && (
+              <button
+                onClick={() => void syncNow()}
+                disabled={syncing}
+                className="p-1 rounded hover:bg-white/60 disabled:opacity-50"
+                aria-label="Sincronizar ahora"
+              >
+                <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
+              </button>
+            )}
+          </div>
+
+          {installable && (
+            <button
+              onClick={async () => {
+                const { promptInstall } = await import('../src/pwa');
+                await promptInstall();
+                setInstallable(false);
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition text-sm font-medium"
+            >
+              <Download size={18} /> Instalar app
+            </button>
+          )}
+
           {user && (
             <div className="flex items-center gap-2 px-2 py-1">
               <UserCircle size={20} className="text-gray-400" />
@@ -95,7 +142,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             <LogOut size={18} /> Cerrar sesión
           </button>
           <div className="text-[10px] text-gray-300 text-center">
-            {dataMode === 'api' ? 'Conectado al servidor' : 'Modo local'} · v2.1.0 © {new Date().getFullYear()}
+            {dataMode === 'api' ? 'Conectado al servidor' : 'Modo local'} · v2.2.0 © {new Date().getFullYear()}
           </div>
         </div>
       </aside>

@@ -66,7 +66,7 @@ describe('Auth flow', () => {
       .send({
         customer: { name: 'Test Buyer', email: 'buyer@test.local', nit: '900000001' },
         items: [{ productId: first.id, quantity: 1 }],
-        paymentMethod: 'CASH',
+        paymentMethod: 'cash',
       });
     expect(sale.status).toBe(201);
     expect(sale.body.data.total).toBeGreaterThan(0);

@@ -6,15 +6,15 @@ type Tx = Prisma.TransactionClient;
 export interface CreateSaleInput {
   customer: { name: string; email: string; nit: string };
   items: { productId: string; quantity: number }[];
-  paymentMethod: 'CASH' | 'CARD' | 'TRANSFER';
+  paymentMethod: 'cash' | 'card' | 'transfer';
   notes?: string;
   userId: string;
 }
 
 const PAYMENT_TO_CASH_CATEGORY: Record<CreateSaleInput['paymentMethod'], string> = {
-  CASH: 'SALE',
-  CARD: 'SALE',
-  TRANSFER: 'SALE',
+  cash: 'SALE',
+  card: 'SALE',
+  transfer: 'SALE',
 };
 
 /**
@@ -162,7 +162,7 @@ async function runSaleTransaction(tx: Tx, input: CreateSaleInput) {
     },
   });
 
-  if (paymentMethod === 'CASH') {
+  if (paymentMethod === 'cash') {
     const cashBox = await tx.cashBox.findFirst();
     if (cashBox) {
       await tx.cashMovement.create({
@@ -195,7 +195,7 @@ async function postSaleJournalEntry(
   paymentMethod: CreateSaleInput['paymentMethod'],
   _userId: string
 ) {
-  const debitCode = paymentMethod === 'CASH' ? '1001' : '1002'; // Caja o Bancos
+  const debitCode = paymentMethod === 'cash' ? '1001' : '1002'; // Caja o Bancos
   const [debitAccount, revenueAccount] = await Promise.all([
     tx.account.findUnique({ where: { code: debitCode } }),
     tx.account.findUnique({ where: { code: '4001' } }),

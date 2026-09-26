@@ -27,7 +27,7 @@ const createSaleSchema = z.object({
       })
     )
     .min(1, 'At least one item is required'),
-  paymentMethod: z.enum(['CASH', 'CARD', 'TRANSFER']).default('CASH'),
+  paymentMethod: z.enum(['cash', 'card', 'transfer']).default('cash'),
   notes: z.string().max(500).optional(),
 });
 

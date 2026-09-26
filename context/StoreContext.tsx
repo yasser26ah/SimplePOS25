@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { Product, CartItem, Sale, Customer, PaymentMethod } from '../types';
 import { INITIAL_PRODUCTS } from '../constants';
@@ -12,12 +12,23 @@ import {
   findCustomerByNit,
   type PaymentMethod as ApiPaymentMethod,
 } from '../src/api';
+import {
+  enqueueSale,
+  getPendingCount,
+  initOfflineSync,
+  syncPendingSales,
+  type QueuedSale,
+} from '../src/sync';
 
 interface StoreContextType {
   products: Product[];
   cart: CartItem[];
   sales: Sale[];
   dataMode: 'api' | 'local';
+  online: boolean;
+  pendingCount: number;
+  syncing: boolean;
+  syncNow: () => Promise<void>;
   reload: () => Promise<void>;
   currentView: 'POS' | 'INVENTORY' | 'ACCOUNTING'| 'BANKS' | 'CONFIG';
   setCurrentView: (view: 'POS' | 'INVENTORY' | 'ACCOUNTING'| 'BANKS' | 'CONFIG') => void;
@@ -33,12 +44,24 @@ interface StoreContextType {
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
-export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+/** Convierte una venta encolada en el formato que usa la UI (modal, PDF). */
+function queuedToUiSale(q: QueuedSale, total: number, items: CartItem[]): Sale {
+  return {
+    id: q.id,
+    date: q.createdAt,
+    items,
+    total,
+    customer: q.customer,
+    paymentMethod: q.paymentMethod,
+  };
+}
+
+export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [products, setProducts] = useState<Product[]>(() => {
     const saved = localStorage.getItem('products');
     return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
   });
-  
+
   const [sales, setSales] = useState<Sale[]>(() => {
     const saved = localStorage.getItem('sales');
     return saved ? JSON.parse(saved) : [];
@@ -47,9 +70,68 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [cart, setCart] = useState<CartItem[]>([]);
   const [currentView, setCurrentView] = useState<'POS' | 'INVENTORY' | 'ACCOUNTING' | 'BANKS' | 'CONFIG'>('POS');
   const [dataMode, setDataMode] = useState<'api' | 'local'>('local');
+  const [online, setOnline] = useState(navigator.onLine);
+  const [pendingCount, setPendingCount] = useState(() => getPendingCount());
+  const [syncing, setSyncing] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('products', JSON.stringify(products));
+  }, [products]);
+
+  useEffect(() => {
+    localStorage.setItem('sales', JSON.stringify(sales));
+  }, [sales]);
+
+  // Carrito: persistencia local (sobrevive recargas y cortes de luz).
+  useEffect(() => {
+    localStorage.setItem('cart', JSON.stringify(cart));
+  }, [cart]);
+
+  useEffect(() => {
+    const savedCart = localStorage.getItem('cart');
+    if (savedCart) {
+      try {
+        setCart(JSON.parse(savedCart));
+      } catch {
+        /* carrito corrupto: se ignora */
+      }
+    }
+  }, []);
+
+  /** Envía una venta encolada al backend (misma ruta que una venta online). */
+  const sendQueuedSale = useCallback(async (q: QueuedSale) => {
+    const existing = await findCustomerByNit(q.customer.nit);
+    if (!existing) {
+      await customersApi.create(q.customer);
+    }
+    await salesApi.create({
+      customer: q.customer,
+      items: q.items,
+      paymentMethod: q.paymentMethod,
+    });
+  }, []);
+
+  // Sincronización automática: online/offline + background sync del service worker.
+  useEffect(() => {
+    const cleanup = initOfflineSync(
+      sendQueuedSale,
+      (sale) => {
+        toast.success(`Venta offline ${sale.id} sincronizada`);
+      },
+      (status) => {
+        setOnline(status.online);
+        setPendingCount(status.pending);
+      }
+    );
+    return cleanup;
+  }, [sendQueuedSale]);
 
   // Carga datos desde la API. Si falla (sin backend / sin sesión), cae a localStorage.
   const reload = useCallback(async () => {
+    if (!navigator.onLine) {
+      setDataMode('local');
+      return;
+    }
     try {
       const [apiProducts, categories] = await Promise.all([
         productsApi.list(),
@@ -79,27 +161,28 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     void reload();
   }, [reload]);
 
-  // Carrito: persistencia local (no requiere backend).
-  useEffect(() => {
-    localStorage.setItem('cart', JSON.stringify(cart));
-  }, [cart]);
-
-  useEffect(() => {
-    const savedCart = localStorage.getItem('cart');
-    if (savedCart) {
-      try {
-        setCart(JSON.parse(savedCart));
-      } catch {
-        /* carrito corrupto: se ignora */
+  /** Sincroniza manualmente (botón en el Layout) y refresca datos del servidor. */
+  const syncNow = useCallback(async () => {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      const synced = await syncPendingSales(sendQueuedSale);
+      if (getPendingCount() === 0 && navigator.onLine) {
+        await reload();
       }
+      if (synced > 0) toast.success(`${synced} venta(s) sincronizada(s)`);
+      else if (getPendingCount() === 0) toast.success('Todo sincronizado');
+    } finally {
+      setSyncing(false);
+      setPendingCount(getPendingCount());
     }
-  }, []);
+  }, [syncing, reload, sendQueuedSale]);
 
   const addToCart = (product: Product) => {
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) {
-        return prev.map(item => 
+        return prev.map(item =>
           item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
@@ -116,7 +199,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       removeFromCart(productId);
       return;
     }
-    setCart(prev => prev.map(item => 
+    setCart(prev => prev.map(item =>
       item.id === productId ? { ...item, quantity } : item
     ));
   };
@@ -127,9 +210,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
     if (dataMode === 'api') {
-      // Flujo con backend: la venta es transaccional en el servidor.
+      // Venta online: transaccional en el servidor.
       try {
-        // Reutiliza el cliente si ya existe por NIT; si no, lo crea.
         const existing = await findCustomerByNit(customer.nit);
         if (!existing) {
           await customersApi.create({
@@ -146,18 +228,26 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         const uiSale = toUiSale(apiSale);
         setSales((prev) => [uiSale, ...prev]);
         setCart([]);
-        // Refresca stock desde el servidor.
         const apiProducts = await productsApi.list();
         setProducts(apiProducts.filter((p) => p.isActive).map(toUiProduct));
         return uiSale;
       } catch (error) {
+        // Red caída u otro fallo de conectividad → encolar para sync posterior.
+        if (isConnectivityError(error)) {
+          return enqueueOfflineSale(customer, paymentMethod, total);
+        }
         const message = error instanceof Error ? error.message : 'Error al registrar la venta';
         toast.error(message);
         throw error;
       }
     }
 
-    // Modo local (sin backend): comportamiento original.
+    // Modo con sesión creada pero sin datos de servidor aún: encolar también.
+    if (localStorage.getItem('accessToken')) {
+      return enqueueOfflineSale(customer, paymentMethod, total);
+    }
+
+    // Modo demo puro (sin sesión ni servidor): comportamiento original.
     setProducts(prev => prev.map(p => {
       const cartItem = cart.find(c => c.id === p.id);
       if (cartItem) {
@@ -180,9 +270,45 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return newSale;
   };
 
+  /** Guarda la venta en la cola offline y devuelve un Sale para el modal/PDF. */
+  function enqueueOfflineSale(customer: Customer, paymentMethod: PaymentMethod, total: number): Sale {
+    const items = [...cart];
+    const queuedItems = items.map((item) => ({ productId: item.id, quantity: item.quantity }));
+    const localId = enqueueSale({ customer, items: queuedItems, paymentMethod });
+    setCart([]);
+    setPendingCount(getPendingCount());
+    const uiSale = queuedToUiSale(
+      {
+        id: localId,
+        createdAt: new Date().toISOString(),
+        customer,
+        items: queuedItems,
+        paymentMethod,
+      },
+      total,
+      items
+    );
+    setSales((prev) => [uiSale, ...prev]);
+    // Optimista: descuenta stock local; el servidor será la verdad al sincronizar.
+    setProducts(prev => prev.map(p => {
+      const cartItem = items.find(c => c.id === p.id);
+      if (cartItem) {
+        return { ...p, stock: Math.max(0, p.stock - cartItem.quantity) };
+      }
+      return p;
+    }));
+    toast.success('Venta guardada sin conexión. Se enviará al reconectar.');
+    return uiSale;
+  }
+
+  function isConnectivityError(error: unknown): boolean {
+    if (error instanceof TypeError) return true; // fetch falló (red/DNS/CORS offline)
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return true;
+    return false;
+  }
+
   const addProduct = (product: Product) => {
     if (dataMode === 'api') {
-      // La creación real requiere SKU/categoría; se hace vía Inventario (modal con SKU).
       toast.error('Usa el formulario de Inventario con SKU para crear productos en el servidor.');
       return;
     }
@@ -213,7 +339,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   return (
     <StoreContext.Provider value={{
-      products, cart, sales, dataMode, reload, currentView, setCurrentView,
+      products, cart, sales, dataMode, online, pendingCount, syncing, syncNow, reload, currentView, setCurrentView,
       addToCart, removeFromCart, updateCartQuantity, clearCart,
       completeSale, addProduct, updateProduct, deleteProduct
     }}>
