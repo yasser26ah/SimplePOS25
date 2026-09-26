@@ -3,8 +3,8 @@ import { useStore } from '../context/StoreContext';
 import { APP_CURRENCY } from '../constants';
 // Added ShoppingCart to imports
 import { Search, Plus, Minus, Trash2, User, CreditCard, Sparkles, Send, Mail, ShoppingCart, ShoppingBag, IdCard, Printer, Banknote, Landmark, HandCoins, X, NotepadText, CheckCircle} from 'lucide-react';
-import { generateInvoiceEmail } from '../services/geminiService';
-import { Sale, Product } from '../types';
+import { aiApi } from '../src/api';
+import { Sale, Product, PaymentMethod } from '../types';
 import { generateReceiptPDF } from '../services/pdfservices';
 
 
@@ -30,6 +30,7 @@ export const POS: React.FC = () => {
   const [customerName, setCustomerName] = useState(DEFAULT_CUSTOMER.name);
   const [customerEmail, setCustomerEmail] = useState(DEFAULT_CUSTOMER.email);
   const [customerNit, setCustomerNit] = useState(DEFAULT_CUSTOMER.nit);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   
   // Post-Sale Modal State
   const [lastSale, setLastSale] = useState<Sale | null>(null);
@@ -65,26 +66,36 @@ export const POS: React.FC = () => {
       return;
     }
 // Completamos la venta y obtenemos los detalles de la misma
-    const sale = await completeSale({
-      name: customerName,
-      email: customerEmail,
-      nit: customerNit
-    });
+    let sale: Sale;
+    try {
+      sale = await completeSale(
+        { name: customerName, email: customerEmail, nit: customerNit },
+        paymentMethod
+      );
+    } catch {
+      // El error ya se notificó (toast); se mantiene el formulario abierto.
+      return;
+    }
 // Guardamos la última venta para mostrar en el modal de éxito y cerramos el formulario de checkout
     setLastSale(sale);
     setIsCheckingOut(false);
     setIsCartDrawerOpen(false);
     
-    // Auto generate email draft
+    // Auto generate email draft via backend (IA)
     setIsGeneratingEmail(true);
-    const generatedEmail = await generateInvoiceEmail(sale);
-    setEmailContent(generatedEmail);
+    try {
+      const { text } = await aiApi.invoiceEmail(sale.id);
+      setEmailContent(text);
+    } catch {
+      setEmailContent('No se pudo generar el correo automáticamente.');
+    }
     setIsGeneratingEmail(false);
     
     // Reset form to default customer
     setCustomerName(DEFAULT_CUSTOMER.name);
     setCustomerEmail(DEFAULT_CUSTOMER.email);
     setCustomerNit(DEFAULT_CUSTOMER.nit);
+    setPaymentMethod('cash');
   };
 // Función para cerrar el modal de éxito y resetear el estado relacionado con la última venta y el contenido del email generado
   const closeSuccessModal = () => {
@@ -292,9 +303,33 @@ export const POS: React.FC = () => {
               </div>
              
               <div className="pt-4">
-                <div className="flex justify-between items-center mb-4 text-xl font-bold">
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Método de pago</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([
+                      { value: 'cash', label: 'Efectivo', Icon: Banknote },
+                      { value: 'card', label: 'Tarjeta', Icon: CreditCard },
+                      { value: 'transfer', label: 'Transf.', Icon: Landmark },
+                    ] as const).map(({ value, label, Icon }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setPaymentMethod(value)}
+                        className={`flex flex-col items-center gap-1 py-3 rounded-xl border-2 font-bold text-sm transition ${
+                          paymentMethod === value
+                            ? 'border-green-600 bg-green-50 text-green-700'
+                            : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                        }`}
+                      >
+                        <Icon size={20} />
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex justify-between items-center mt-4 mb-4 text-xl font-bold">
                   <span className="text-gray-500">Total a pagar:</span>
-                  <span className="text-green-600">{APP_CURRENCY}{cartTotal.toFixed(0)}</span>
+                  <span className="text-green-600">{APP_CURRENCY}{cartTotal.toFixed(2)}</span>
                 </div>
                 <button 
                   onClick={handleCheckout}

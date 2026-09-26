@@ -33,8 +33,9 @@ export default function Banks() {
 
     const calculateMetrics = () => {
         const grouped = groupSalesByPeriod(period);
-        const today = new Date().toISOString().split('T')[0];
-        const todaySales = grouped[today] || [];
+        const date = new Date();
+        const key = getDateKey(date, period);
+        const todaySales = grouped[key] || [];
 
         const totalByMethod = {
             cash: 0,

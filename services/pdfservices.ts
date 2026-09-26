@@ -1,8 +1,30 @@
 import { jsPDF } from "jspdf";
 import { Sale } from "../types";
 import { APP_CURRENCY } from "../constants";
+import { settingsApi, type BusinessSettings } from "../src/api";
 
-export const generateReceiptPDF = (sale: Sale) => {
+// Datos del negocio para el encabezado de la tirilla. Se intentan traer del
+// servidor (Configuración); si no hay sesión/API se usan valores de reserva.
+const FALLBACK_SETTINGS: BusinessSettings = {
+  storeName: 'SimplePOS',
+  nit: '900.123.456-7',
+  address: 'Calle 123 # 45-67, Ciudad',
+  phone: '(601) 555-5555',
+  taxRate: 0,
+  lowStockThreshold: 10,
+};
+
+async function loadSettings(): Promise<BusinessSettings> {
+  try {
+    return await settingsApi.get();
+  } catch {
+    return FALLBACK_SETTINGS;
+  }
+}
+
+export const generateReceiptPDF = async (sale: Sale) => {
+  const settings = await loadSettings();
+
   // Configuración para papel térmico de 80mm
   // El alto es dinámico o fijo largo, usamos uno largo para simular el rollo
   // 80mm de ancho es estándar, convertimos a puntos (1mm = 2.83pt aprox)
@@ -43,14 +65,20 @@ export const generateReceiptPDF = (sale: Sale) => {
   doc.setFont("helvetica", "bold");
   centerText("SimplePOS", yPos);
   yPos += 5;
-
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  centerText("NIT: 900.123.456-7", yPos);
+  centerText(settings.nit ? `NIT: ${settings.nit}` : '—', yPos);
   yPos += 4;
-  centerText("Calle 123 # 45-67, Ciudad", yPos);
+  centerText(settings.address || '—', yPos);
   yPos += 4;
-  centerText("Tel: (601) 555-5555", yPos);
+  centerText(settings.phone ? `Tel: ${settings.phone}` : '—', yPos);
+  yPos += 4;
+  const methodLabel: Record<string, string> = {
+    cash: 'Efectivo',
+    card: 'Tarjeta',
+    transfer: 'Transferencia',
+  };
+  centerText(`Pago: ${methodLabel[sale.paymentMethod ?? 'cash'] ?? sale.paymentMethod}`, yPos);
   yPos += 6;
 
   drawLine(yPos);

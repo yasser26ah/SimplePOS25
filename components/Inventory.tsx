@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Product } from '../types';
 import { APP_CURRENCY } from '../constants';
+import { productsApi, categoriesApi, toUiProduct } from '../src/api';
+import toast from 'react-hot-toast';
 import { Plus, Edit2, Trash2, X, Save } from 'lucide-react';
 
 export const Inventory: React.FC = () => {
@@ -17,11 +19,14 @@ export const Inventory: React.FC = () => {
     category: '',
     image: 'https://picsum.photos/200/200'
   });
+  const [sku, setSku] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const openModal = (product?: Product) => {
     if (product) {
       setEditingProduct(product);
       setFormData({ ...product });
+      setSku('');
     } else {
       setEditingProduct(null);
       setFormData({
@@ -31,18 +36,47 @@ export const Inventory: React.FC = () => {
         category: '',
         image: `https://picsum.photos/200/200?random=${Date.now()}`
       });
+      setSku('');
     }
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingProduct) {
-      updateProduct({ ...formData, id: editingProduct.id });
-    } else {
-      addProduct({ ...formData, id: Math.random().toString(36).substr(2, 9) });
+    setSaving(true);
+    try {
+      if (editingProduct) {
+        updateProduct({ ...formData, id: editingProduct.id });
+      } else {
+        // Creación vía API: resuelve (o crea) la categoría por nombre y exige SKU.
+        const finalSku = sku.trim() || `SKU-${Date.now().toString(36).toUpperCase()}`;
+        const categories = await categoriesApi.list();
+        let category = categories.find(
+          (c) => c.name.toLowerCase() === formData.category.trim().toLowerCase()
+        );
+        if (!category) {
+          category = await categoriesApi.create({ name: formData.category.trim() });
+        }
+        const created = await productsApi.create({
+          name: formData.name,
+          sku: finalSku,
+          price: formData.price,
+          categoryId: category.id,
+          imageUrl: formData.image,
+          stock: formData.stock,
+        });
+        const categories2 = await categoriesApi.list();
+        const catName =
+          categories2.find((c) => c.id === created.categoryId)?.name ?? formData.category;
+        addProduct(toUiProduct({ ...created, category: { id: created.categoryId, name: catName } }));
+        toast.success('Producto creado');
+      }
+      setIsModalOpen(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al guardar el producto');
+    } finally {
+      setSaving(false);
     }
-    setIsModalOpen(false);
   };
 
   const handleDelete = (id: string) => {
@@ -130,6 +164,18 @@ export const Inventory: React.FC = () => {
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">SKU {editingProduct ? '(no editable)' : ''}</label>
+                <input
+                  required
+                  type="text"
+                  disabled={Boolean(editingProduct)}
+                  placeholder="Ej: CAF-001"
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100"
+                  value={editingProduct ? '' : sku}
+                  onChange={(e) => setSku(e.target.value)}
+                />
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
                 <input 
                   required
@@ -173,8 +219,8 @@ export const Inventory: React.FC = () => {
                 />
               </div>
               
-              <button type="submit" className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2 mt-4">
-                <Save size={18} /> Guardar
+              <button type="submit" disabled={saving} className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold hover:bg-blue-700 transition flex items-center justify-center gap-2 mt-4 disabled:opacity-50">
+                <Save size={18} /> {saving ? 'Guardando…' : 'Guardar'}
               </button>
             </form>
           </div>

@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+/* Ajustes globales de SimplePOS */
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+}

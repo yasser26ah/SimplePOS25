@@ -3,7 +3,7 @@ import { useStore } from '../context/StoreContext';
 import { APP_CURRENCY } from '../constants';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { SalesSummary } from '../types';
-import { analyzeSalesData } from '../services/geminiService';
+import { aiApi } from '../src/api';
 import { Sparkles, TrendingUp, DollarSign, ShoppingBag } from 'lucide-react';
 
 export const Accounting: React.FC = () => {
@@ -41,9 +41,18 @@ export const Accounting: React.FC = () => {
 
   const handleAIAnalysis = async () => {
     setIsAnalyzing(true);
-    const result = await analyzeSalesData(stats);
-    setAiAnalysis(result);
-    setIsAnalyzing(false);
+    try {
+      const { text } = await aiApi.salesAnalysis();
+      setAiAnalysis(text);
+    } catch (err) {
+      setAiAnalysis(
+        err instanceof Error
+          ? `No se pudo generar el análisis: ${err.message}`
+          : 'No se pudo generar el análisis.'
+      );
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   return (
@@ -52,10 +61,9 @@ export const Accounting: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold text-gray-800">Contabilidad</h2>
           <p className="text-gray-500">Resumen financiero y rendimiento</p>
-        </div>
-        <button 
+        </div>          <button 
           onClick={handleAIAnalysis}
-          disabled={isAnalyzing}
+          disabled={isAnalyzing || stats.totalSales === 0}
           className="bg-indigo-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-indigo-700 transition flex items-center gap-2 disabled:opacity-50"
         >
           <Sparkles size={18} />

@@ -1,3 +1,5 @@
+export type PaymentMethod = 'cash' | 'card' | 'transfer';
+
 export interface Product {
   //interface de producto
   id: string;
@@ -25,11 +27,13 @@ export interface Sale {
   date: string; // ISO string
   items: CartItem[];
   total: number;
+  tax?: number;
   customer: Customer;
+  paymentMethod?: PaymentMethod;
   invoiceEmailContent?: string;
 }
 
-export type ViewState = 'POS' | 'INVENTORY' | 'ACCOUNTING' | 'BANKS';
+export type ViewState = 'POS' | 'INVENTORY' | 'ACCOUNTING' | 'BANKS' | 'CONFIG';
 
 export interface SalesSummary {
   //resumen de ventas en contabilidad

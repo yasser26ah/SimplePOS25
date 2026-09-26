@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
-import { ShoppingCart, Package, BarChart3, Wallet, ShoppingBag, Menu, X, Bold, Settings, Settings2, ChevronLeft  } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { ShoppingCart, Package, BarChart3, Wallet, ShoppingBag, Menu, X, Settings2, ChevronLeft, LogOut, UserCircle } from 'lucide-react';
 
 //Componente NavBar - Sidebar sin desplegar(false) y desplegado(true)
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentView, setCurrentView } = useStore();
+  const { currentView, setCurrentView, dataMode } = useStore();
+  const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   //Items de navegación - slidebar
@@ -76,10 +78,25 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           <NavItem view="CONFIG" icon={Settings2} label="Configuración" />
         </nav>
 
-        <div className="p-2 border-t border-gray-100">
-          <div className="text-xs text-gray-400 text-center">
-              v2.0.1 © {new Date().getFullYear()}
+        <div className="p-3 border-t border-gray-100 space-y-2">
+          {user && (
+            <div className="flex items-center gap-2 px-2 py-1">
+              <UserCircle size={20} className="text-gray-400" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-700 truncate">{user.username}</p>
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide">{user.role}</p>
+              </div>
             </div>
+          )}
+          <button
+            onClick={logout}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-gray-500 hover:bg-red-50 hover:text-red-600 transition text-sm font-medium"
+          >
+            <LogOut size={18} /> Cerrar sesión
+          </button>
+          <div className="text-[10px] text-gray-300 text-center">
+            {dataMode === 'api' ? 'Conectado al servidor' : 'Modo local'} · v2.1.0 © {new Date().getFullYear()}
+          </div>
         </div>
       </aside>
 
