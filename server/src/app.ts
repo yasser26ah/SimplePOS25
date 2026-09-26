@@ -17,6 +17,8 @@ import inventoryRoutes from './routes/inventory.routes';
 import accountingRoutes from './routes/accounting.routes';
 import bankRoutes from './routes/banks.routes';
 import expenseRoutes from './routes/expenses.routes';
+import settingsRoutes from './routes/settings.routes';
+import aiRoutes from './routes/ai.routes';
 
 const app = express();
 
@@ -24,10 +26,12 @@ const app = express();
 app.use(helmet());
 
 // CORS
-app.use(cors({
-  origin: config.cors.origin,
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: config.cors.origin,
+    credentials: true,
+  })
+);
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
@@ -41,7 +45,7 @@ if (config.env === 'development') {
 }
 
 // Health check (before rate limiter)
-app.get('/health', skipRateLimiter, (req, res) => {
+app.get('/health', skipRateLimiter, (_req, res) => {
   res.status(200).json({
     success: true,
     message: 'Server is running',
@@ -49,7 +53,7 @@ app.get('/health', skipRateLimiter, (req, res) => {
   });
 });
 
-app.get('/api/health', skipRateLimiter, (req, res) => {
+app.get('/api/health', skipRateLimiter, (_req, res) => {
   res.status(200).json({
     success: true,
     message: 'API is running',
@@ -68,6 +72,8 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/accounting', accountingRoutes);
 app.use('/api/banks', bankRoutes);
 app.use('/api/expenses', expenseRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/ai', aiRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

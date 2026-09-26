@@ -13,8 +13,7 @@ export const errorHandler = (
   err: Error | AppError,
   req: Request,
   res: Response,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  next: NextFunction
+  _next: NextFunction
 ) => {
   const statusCode = 'statusCode' in err ? err.statusCode : 500;
   const message = err.message || 'Internal server error';
@@ -30,8 +29,8 @@ export const errorHandler = (
     message,
   };
 
-  if (err instanceof AppError && err.errors) {
-    response.errors = err.errors;
+  if (err instanceof AppError && 'errors' in err && err.errors) {
+    response.errors = err.errors as Record<string, string>[];
   }
 
   if (process.env.NODE_ENV === 'development' && err.stack) {

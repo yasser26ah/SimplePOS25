@@ -3,10 +3,10 @@ import { z } from 'zod';
 import { authController } from '../controllers/auth.controller';
 import { validate } from '../middlewares/validation';
 import { authRateLimiter } from '../middlewares/rateLimiter';
+import { authenticate } from '../middlewares/auth';
 
 const router = Router();
 
-// Public routes (with rate limiting)
 const loginSchema = z.object({
   email: z.string().email('Invalid email format'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
@@ -27,5 +27,9 @@ const refreshTokenSchema = z.object({
 router.post('/login', authRateLimiter, validate(loginSchema), authController.login);
 router.post('/register', authRateLimiter, validate(registerSchema), authController.register);
 router.post('/refresh', validate(refreshTokenSchema), authController.refresh);
+
+// Authenticated routes
+router.get('/me', authenticate, authController.me);
+router.post('/logout', authenticate, authController.logout);
 
 export default router;

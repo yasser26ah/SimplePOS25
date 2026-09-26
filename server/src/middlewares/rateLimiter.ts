@@ -13,9 +13,12 @@ export const authRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  handler: (req, res, options) => {
+  handler: (req, res) => {
     logger.warn(`Rate limit exceeded for auth: ${req.ip}`);
-    res.status(429).json(options.message);
+    res.status(429).json({
+      success: false,
+      message: 'Too many login attempts, please try again later',
+    });
   },
 });
 

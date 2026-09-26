@@ -20,6 +20,13 @@ export interface LoginInput {
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
+  user?: {
+    id: string;
+    username: string;
+    email: string;
+    role: string;
+    isActive: boolean;
+  };
 }
 
 class AuthService {
@@ -105,7 +112,16 @@ class AuthService {
     // Generate tokens
     const tokens = this.generateTokens(user.id, user.email, user.roleId);
 
-    return tokens;
+    return {
+      ...tokens,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role.name,
+        isActive: user.isActive,
+      },
+    };
   }
 
   async refreshToken(refreshToken: string): Promise<AuthTokens> {
@@ -156,11 +172,11 @@ class AuthService {
     const payload = { userId, email, roleId };
 
     const accessToken = jwt.sign(payload, config.jwt.secret, {
-      expiresIn: config.jwt.expiresIn,
+      expiresIn: config.jwt.expiresIn as jwt.SignOptions['expiresIn'],
     });
 
     const refreshToken = jwt.sign(payload, config.jwt.refreshSecret, {
-      expiresIn: config.jwt.refreshExpiresIn,
+      expiresIn: config.jwt.refreshExpiresIn as jwt.SignOptions['expiresIn'],
     });
 
     return { accessToken, refreshToken };
