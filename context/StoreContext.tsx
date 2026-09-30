@@ -15,8 +15,13 @@ import {
 import {
   enqueueSale,
   getPendingCount,
+  getRejectedCount,
+  discardRejected,
+  retryRejected,
+  clearRejected,
   initOfflineSync,
   syncPendingSales,
+  REJECTED_EVENT,
   type QueuedSale,
 } from '../src/sync';
 
@@ -27,11 +32,15 @@ interface StoreContextType {
   dataMode: 'api' | 'local';
   online: boolean;
   pendingCount: number;
+  rejectedCount: number;
   syncing: boolean;
   syncNow: () => Promise<void>;
+  retrySale: (id: string) => void;
+  discardSale: (id: string) => void;
+  discardAllConflicts: () => void;
   reload: () => Promise<void>;
-  currentView: 'POS' | 'INVENTORY' | 'ACCOUNTING'| 'BANKS' | 'CONFIG';
-  setCurrentView: (view: 'POS' | 'INVENTORY' | 'ACCOUNTING'| 'BANKS' | 'CONFIG') => void;
+  currentView: 'POS' | 'INVENTORY' | 'ACCOUNTING'| 'BANKS' | 'CONFIG' | 'CONFLICTS';
+  setCurrentView: (view: 'POS' | 'INVENTORY' | 'ACCOUNTING'| 'BANKS' | 'CONFIG' | 'CONFLICTS') => void;
   addToCart: (product: Product) => void;
   removeFromCart: (productId: string) => void;
   updateCartQuantity: (productId: string, quantity: number) => void;
@@ -68,10 +77,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
 
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [currentView, setCurrentView] = useState<'POS' | 'INVENTORY' | 'ACCOUNTING' | 'BANKS' | 'CONFIG'>('POS');
+  const [currentView, setCurrentView] = useState<'POS' | 'INVENTORY' | 'ACCOUNTING' | 'BANKS' | 'CONFIG' | 'CONFLICTS'>('POS');
   const [dataMode, setDataMode] = useState<'api' | 'local'>('local');
   const [online, setOnline] = useState(navigator.onLine);
   const [pendingCount, setPendingCount] = useState(() => getPendingCount());
+  const [rejectedCount, setRejectedCount] = useState(() => getRejectedCount());
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
@@ -112,6 +122,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   // Sincronización automática: online/offline + background sync del service worker.
+  // Las ventas que el servidor rechaza de forma permanente (ej. stock insuficiente)
+  // pasan a la cola de "conflictos"; se reintenta al volver a la pestaña.
   useEffect(() => {
     const cleanup = initOfflineSync(
       sendQueuedSale,
@@ -123,7 +135,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setPendingCount(status.pending);
       }
     );
-    return cleanup;
+
+    const syncAll = () =>
+      syncPendingSales(sendQueuedSale).finally(() => setPendingCount(getPendingCount()));
+
+    const syncOnVisible = () => {
+      if (document.visibilityState === 'visible') syncAll();
+    };
+
+    let prevRejected = getRejectedCount();
+    const onRejected = () => {
+      const count = getRejectedCount();
+      const delta = count - prevRejected;
+      setRejectedCount(count);
+      if (delta > 0) {
+        toast.error(
+          `${delta} venta(s) rechazada(s) por el servidor. Revísalas en Conflictos.`,
+          { duration: 6000 }
+        );
+      }
+      prevRejected = count;
+    };
+
+    document.addEventListener('visibilitychange', syncOnVisible);
+    window.addEventListener(REJECTED_EVENT, onRejected);
+    onRejected();
+    return () => {
+      document.removeEventListener('visibilitychange', syncOnVisible);
+      window.removeEventListener(REJECTED_EVENT, onRejected);
+      cleanup();
+    };
   }, [sendQueuedSale]);
 
   // Carga datos desde la API. Si falla (sin backend / sin sesión), cae a localStorage.
@@ -175,8 +216,37 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } finally {
       setSyncing(false);
       setPendingCount(getPendingCount());
+      setRejectedCount(getRejectedCount());
     }
   }, [syncing, reload, sendQueuedSale]);
+
+  /** Reintenta una venta rechazada: vuelve a la cola pendiente y sincroniza de inmediato. */
+  const retrySale = useCallback((id: string) => {
+    const sale = retryRejected(id);
+    if (!sale) return;
+    setRejectedCount(getRejectedCount());
+    setPendingCount(getPendingCount());
+    toast.success(`Venta ${id} devuelta a la cola. Sincronizando…`);
+    void syncPendingSales(sendQueuedSale).finally(() => {
+      setPendingCount(getPendingCount());
+      setRejectedCount(getRejectedCount());
+    });
+  }, [sendQueuedSale]);
+
+  /** Descarta definitivamente una venta rechazada. */
+  const discardSale = useCallback((id: string) => {
+    const removed = discardRejected(id);
+    if (!removed) return;
+    setRejectedCount(getRejectedCount());
+    toast.success(`Venta ${id} descartada`);
+  }, []);
+
+  /** Descarta todos los conflictos listados. */
+  const discardAllConflicts = useCallback(() => {
+    clearRejected();
+    setRejectedCount(0);
+    toast.success('Conflictos descartados');
+  }, []);
 
   const addToCart = (product: Product) => {
     setCart(prev => {
@@ -274,7 +344,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   function enqueueOfflineSale(customer: Customer, paymentMethod: PaymentMethod, total: number): Sale {
     const items = [...cart];
     const queuedItems = items.map((item) => ({ productId: item.id, quantity: item.quantity }));
-    const localId = enqueueSale({ customer, items: queuedItems, paymentMethod });
+    const localId = enqueueSale({
+      customer,
+      items: queuedItems,
+      paymentMethod,
+      // Precio por producto para poder mostrar totales en la UI de conflictos.
+      salePrice: Object.fromEntries(items.map((i) => [i.id, i.price])),
+    });
     setCart([]);
     setPendingCount(getPendingCount());
     const uiSale = queuedToUiSale(
@@ -339,7 +415,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   return (
     <StoreContext.Provider value={{
-      products, cart, sales, dataMode, online, pendingCount, syncing, syncNow, reload, currentView, setCurrentView,
+      products, cart, sales, dataMode, online, pendingCount, rejectedCount, syncing, syncNow, reload, currentView, setCurrentView,
+      retrySale, discardSale, discardAllConflicts,
       addToCart, removeFromCart, updateCartQuantity, clearCart,
       completeSale, addProduct, updateProduct, deleteProduct
     }}>

@@ -8,6 +8,7 @@ import { Inventory } from './components/Inventory';
 import { Accounting } from './components/Accounting';
 import Banks from './components/Banks';
 import { Settings } from './components/Settings';
+import { Conflicts } from './components/Conflicts';
 import { Login } from './components/Login';
 
 const AppContent: React.FC = () => {
@@ -20,6 +21,7 @@ const AppContent: React.FC = () => {
       {currentView === 'INVENTORY' && <Inventory />}
       {currentView === 'BANKS' && <Banks />}
       {currentView === 'CONFIG' && <Settings />}
+      {currentView === 'CONFLICTS' && <Conflicts />}
     </Layout>
   );
 };

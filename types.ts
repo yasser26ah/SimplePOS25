@@ -33,7 +33,7 @@ export interface Sale {
   invoiceEmailContent?: string;
 }
 
-export type ViewState = 'POS' | 'INVENTORY' | 'ACCOUNTING' | 'BANKS' | 'CONFIG';
+export type ViewState = 'POS' | 'INVENTORY' | 'ACCOUNTING' | 'BANKS' | 'CONFIG' | 'CONFLICTS';
 
 export interface SalesSummary {
   //resumen de ventas en contabilidad

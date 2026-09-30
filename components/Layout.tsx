@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { useAuth } from '../context/AuthContext';
-import { ShoppingCart, Package, BarChart3, Wallet, ShoppingBag, Menu, X, Settings2, ChevronLeft, LogOut, UserCircle, Wifi, WifiOff, RefreshCw, Download } from 'lucide-react';
+import { ShoppingCart, Package, BarChart3, Wallet, ShoppingBag, Menu, X, Settings2, ChevronLeft, LogOut, UserCircle, Wifi, WifiOff, RefreshCw, Download, AlertTriangle } from 'lucide-react';
 
 //Componente NavBar - Sidebar sin desplegar(false) y desplegado(true)
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentView, setCurrentView, dataMode, online, pendingCount, syncing, syncNow } = useStore();
+  const { currentView, setCurrentView, dataMode, online, pendingCount, rejectedCount, syncing, syncNow } = useStore();
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [installable, setInstallable] = useState(false);
@@ -18,7 +18,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   }, []);
 
   //Items de navegación - slidebar
-  const NavItem = ({ view, icon: Icon, label }: { view: typeof currentView, icon: any, label: string }) => (
+  const NavItem = ({ view, icon: Icon, label, badge = 0 }: { view: typeof currentView, icon: any, label: string, badge?: number }) => (
     <button
       onClick={() => {
         setCurrentView(view);
@@ -32,6 +32,11 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     >
       <Icon size={20} />
        <span className="font-medium">{label}</span>
+      {badge > 0 && (
+        <span className="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[11px] font-bold">
+          {badge}
+        </span>
+      )}
     </button>
   );
 
@@ -83,6 +88,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           <NavItem view="INVENTORY" icon={Package} label="Inventario" />
           <NavItem view="ACCOUNTING" icon={BarChart3} label="Contabilidad" />
           <NavItem view="BANKS" icon={Wallet} label="Caja" />
+          <NavItem view="CONFLICTS" icon={AlertTriangle} label="Conflictos" badge={rejectedCount} />
           <NavItem view="CONFIG" icon={Settings2} label="Configuración" />
         </nav>
 
@@ -112,6 +118,20 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               </button>
             )}
           </div>
+
+          {/* Acceso directo a ventas rechazadas */}
+          {rejectedCount > 0 && currentView !== 'CONFLICTS' && (
+            <button
+              onClick={() => {
+                setCurrentView('CONFLICTS');
+                setSidebarOpen(false);
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 transition text-xs font-semibold"
+            >
+              <AlertTriangle size={14} />
+              <span className="flex-1 text-left">{rejectedCount} venta(s) rechazada(s) — revisar</span>
+            </button>
+          )}
 
           {installable && (
             <button
