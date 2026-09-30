@@ -150,38 +150,49 @@ export function getPendingSales(): QueuedSale[] {
   return readQueue();
 }
 
-/** Intenta enviar todas las ventas pendientes. Devuelve cuántas se sincronizaron. */
-export async function syncPendingSales(
+/**
+ * Intenta enviar todas las ventas pendientes. Devuelve cuántas se sincronizaron.
+ * Las llamadas concurrentes (sync inicial, evento online, visibilitychange, service
+ * worker, botón manual) se serializan para no enviar la misma venta dos veces.
+ */
+let syncChain: Promise<number> = Promise.resolve(0);
+export function syncPendingSales(
   sendSale: (sale: QueuedSale) => Promise<unknown>,
   onSynced?: (sale: QueuedSale) => void
 ): Promise<number> {
-  const queue = readQueue();
-  if (queue.length === 0) return 0;
+  const run = async (): Promise<number> => {
+    const queue = readQueue();
+    if (queue.length === 0) return 0;
 
-  const remaining: QueuedSale[] = [];
-  let synced = 0;
+    const remaining: QueuedSale[] = [];
+    let synced = 0;
 
-  for (const sale of queue) {
-    try {
-      await sendSale(sale);
-      synced += 1;
-      onSynced?.(sale);
-    } catch (error) {
-      if (isPermanentRejection(error)) {
-        // El servidor rechazó la venta (stock insuficiente, datos inválidos, etc.):
-        // se saca de la cola de pendientes y pasa a conflictos para revisión.
-        recordRejection(sale, error);
-      } else {
-        remaining.push(sale); // sigue pendiente: red caída
+    for (const sale of queue) {
+      try {
+        await sendSale(sale);
+        synced += 1;
+        onSynced?.(sale);
+      } catch (error) {
+        if (isPermanentRejection(error)) {
+          // El servidor rechazó la venta (stock insuficiente, datos inválidos, etc.):
+          // se saca de la cola de pendientes y pasa a conflictos para revisión.
+          recordRejection(sale, error);
+        } else {
+          remaining.push(sale); // sigue pendiente: red caída
+        }
       }
     }
-  }
 
-  writeQueue(remaining);
-  if (synced > 0) {
-    window.dispatchEvent(new CustomEvent(SYNC_EVENT, { detail: { synced } }));
-  }
-  return synced;
+    writeQueue(remaining);
+    if (synced > 0) {
+      window.dispatchEvent(new CustomEvent(SYNC_EVENT, { detail: { synced } }));
+    }
+    return synced;
+  };
+
+  const result = syncChain.then(run, run);
+  syncChain = result.catch(() => 0);
+  return result;
 }
 
 /** Registra los listeners de conectividad y background sync. */
